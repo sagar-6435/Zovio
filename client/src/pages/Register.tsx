@@ -3,6 +3,7 @@ import { useNavigate, Link } from '@tanstack/react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
 import { ArrowLeft, User as UserIcon, Mail, Phone, Lock, Loader2, Briefcase } from 'lucide-react';
+import { API_BASE_URL } from '../lib/api';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -21,7 +22,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, password, role }),
@@ -52,7 +53,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/google', {
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: credentialResponse.credential, role }),
