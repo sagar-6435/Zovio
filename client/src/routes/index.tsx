@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../contexts/AuthContext";
+import { useLocationRestriction } from "../contexts/LocationRestrictionContext";
 import {
   ArrowRight,
   BadgeCheck,
@@ -41,8 +42,16 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [location, setLocation] = useState("Kakinada");
   const [isInServiceArea, setIsInServiceArea] = useState<boolean | null>(null);
+  const { locationRestrictionEnabled } = useLocationRestriction();
 
   useEffect(() => {
+    // If location restriction is disabled (toggle OFF), allow all users
+    if (!locationRestrictionEnabled) {
+      setIsInServiceArea(true);
+      return;
+    }
+
+    // If location restriction is enabled, check user's location
     if (!navigator.geolocation) {
       setIsInServiceArea(false);
       return;
@@ -69,7 +78,7 @@ function Index() {
         setIsInServiceArea(false);
       }
     );
-  }, []);
+  }, [locationRestrictionEnabled]);
   const [query, setQuery] = useState("");
   const [savedProperties, setSavedProperties] = useState<string[]>([]);
   const navigate = useNavigate({ from: "/" });
@@ -165,11 +174,20 @@ function Index() {
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
               {filteredServices.slice(0, 8).map((service) => {
                 const Icon = service.icon;
-                return <button key={service.name} type="button" onClick={() => setQuery(service.name)} className="group flex min-h-[128px] flex-col items-start justify-between rounded-2xl border border-brand-deep-navy/10 bg-surface-cream p-4 text-left transition-all hover:-translate-y-1 hover:border-brand-orange/60 hover:shadow-lg sm:min-h-[140px]">
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${service.tone}`}><Icon className="h-5 w-5" /></span>
-                  <span className="text-sm font-extrabold text-brand-deep-navy">{service.name}</span>
-                  <span className="text-xs font-semibold text-ink-soft">{service.count} nearby</span>
-                </button>;
+                return (
+                  <Link 
+                    key={service.name}
+                    to="/services"
+                    search={{ q: service.name }}
+                    className="group flex min-h-32 flex-col items-start justify-between rounded-2xl border border-brand-deep-navy/10 bg-surface-cream p-4 text-left transition-all hover:-translate-y-1 hover:border-brand-orange/60 hover:shadow-lg sm:min-h-35"
+                  >
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${service.tone}`}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="text-sm font-extrabold text-brand-deep-navy">{service.name}</span>
+                    <span className="text-xs font-semibold text-ink-soft">{service.count} nearby</span>
+                  </Link>
+                );
               })}
             </div>
           </div>

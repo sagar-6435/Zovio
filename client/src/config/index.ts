@@ -7,24 +7,24 @@
 const getApiUrl = () => {
   // Support both Vite and Create React App environment variable styles
   return (
-    (import.meta.env.VITE_API_URL as string | undefined) ||
-    process.env.REACT_APP_API_URL ||
+    (import.meta.env['VITE_API_URL'] as string | undefined) ||
+    (import.meta.env['REACT_APP_API_URL'] as string | undefined) ||
     'http://localhost:5000/api'
   );
 };
 
 const getCloudinaryName = () => {
   return (
-    (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined) ||
-    process.env.REACT_APP_CLOUDINARY_CLOUD_NAME ||
+    (import.meta.env['VITE_CLOUDINARY_CLOUD_NAME'] as string | undefined) ||
+    (import.meta.env['REACT_APP_CLOUDINARY_CLOUD_NAME'] as string | undefined) ||
     ''
   );
 };
 
 const getCloudinaryPreset = () => {
   return (
-    (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string | undefined) ||
-    process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET ||
+    (import.meta.env['VITE_CLOUDINARY_UPLOAD_PRESET'] as string | undefined) ||
+    (import.meta.env['REACT_APP_CLOUDINARY_UPLOAD_PRESET'] as string | undefined) ||
     ''
   );
 };
@@ -43,45 +43,45 @@ export const CLOUDINARY_CONFIG = {
   folder: 'home/zovio/staff',
   formats: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
   maxFileSize: parseInt(
-    (import.meta.env.VITE_MAX_FILE_SIZE as string | undefined) ||
-      process.env.REACT_APP_MAX_FILE_SIZE ||
+    (import.meta.env['VITE_MAX_FILE_SIZE'] as string | undefined) ||
+      (import.meta.env['REACT_APP_MAX_FILE_SIZE'] as string | undefined) ||
       '5242880'
   ), // 5MB
 };
 
 // Feature Flags
 export const FEATURE_FLAGS = {
-  enableAnalytics: process.env.REACT_APP_ENABLE_ANALYTICS === 'true',
-  enableExport: process.env.REACT_APP_ENABLE_EXPORT === 'true',
+  enableAnalytics: import.meta.env['REACT_APP_ENABLE_ANALYTICS'] === 'true',
+  enableExport: import.meta.env['REACT_APP_ENABLE_EXPORT'] === 'true',
   enableBulkOperations:
-    process.env.REACT_APP_ENABLE_BULK_OPERATIONS === 'true',
+    import.meta.env['REACT_APP_ENABLE_BULK_OPERATIONS'] === 'true',
   enableNotifications: true,
   enableEmailReports: true,
 };
 
 // App Configuration
 export const APP_CONFIG = {
-  name: process.env.REACT_APP_APP_NAME || 'Zovio',
-  version: process.env.REACT_APP_APP_VERSION || '1.0.0',
-  supportEmail: process.env.REACT_APP_SUPPORT_EMAIL || 'support@zovio.com',
+  name: import.meta.env['REACT_APP_APP_NAME'] || 'Zovio',
+  version: import.meta.env['REACT_APP_APP_VERSION'] || '1.0.0',
+  supportEmail: import.meta.env['REACT_APP_SUPPORT_EMAIL'] || 'support@zovio.com',
   supportPhone: '+91 1800-123-4567',
   timezone: 'Asia/Kolkata',
 };
 
 // Pagination & Limits
 export const PAGINATION_CONFIG = {
-  defaultPageSize: parseInt(process.env.REACT_APP_PAGINATION_SIZE || '25'),
+  defaultPageSize: parseInt(import.meta.env['REACT_APP_PAGINATION_SIZE'] || '25'),
   maxWorkersPerPage: parseInt(
-    process.env.REACT_APP_MAX_WORKERS_PER_PAGE || '10'
+    import.meta.env['REACT_APP_MAX_WORKERS_PER_PAGE'] || '10'
   ),
   maxResults: 1000,
 };
 
 // Debug Configuration
 export const DEBUG_CONFIG = {
-  enabled: process.env.REACT_APP_DEBUG_MODE === 'true',
-  logLevel: process.env.REACT_APP_LOG_LEVEL || 'info',
-  environment: process.env.REACT_APP_ENV || 'development',
+  enabled: import.meta.env['REACT_APP_DEBUG_MODE'] === 'true',
+  logLevel: import.meta.env['REACT_APP_LOG_LEVEL'] || 'info',
+  environment: import.meta.env['REACT_APP_ENV'] || 'development',
 };
 
 // Database Operations (Field Limits)

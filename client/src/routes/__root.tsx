@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNavbar } from "../components/BottomNavbar";
 import { Navbar } from "../components/Navbar";
 import { AuthProvider } from "../contexts/AuthContext";
+import { LocationRestrictionProvider } from "../contexts/LocationRestrictionContext";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 function NotFoundComponent() {
@@ -133,11 +134,13 @@ function RootComponent() {
     <GoogleOAuthProvider clientId={clientId}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <div className="pb-16 lg:pb-0">
-            <Navbar />
-            <Outlet />
-          </div>
-          <BottomNavbar />
+          <LocationRestrictionProvider>
+            <div className="pb-16 lg:pb-0">
+              <Navbar />
+              <Outlet />
+            </div>
+            <BottomNavbar />
+          </LocationRestrictionProvider>
         </AuthProvider>
       </QueryClientProvider>
     </GoogleOAuthProvider>

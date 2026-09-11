@@ -2,10 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Wrench, Snowflake, Car, Sparkles, Scissors, Laptop, 
   Truck, PartyPopper, GraduationCap, HeartPulse, Briefcase, 
-  Store, Home, TreePine, ChevronRight, ArrowRight
+  Store, Home, TreePine, ChevronRight, ArrowRight, Lock
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { Route } from '../routes/services';
+import { useLocationRestriction } from '../contexts/LocationRestrictionContext';
 
 const serviceCategories = [
   {
@@ -338,6 +339,13 @@ const serviceCategories = [
 export default function Services() {
   const { q } = Route.useSearch();
   const [activeCategory, setActiveCategory] = useState(serviceCategories[0].name);
+  const { locationRestrictionEnabled, isWithinRadius } = useLocationRestriction();
+  
+  // Debug logging
+  console.log('Services page - locationRestrictionEnabled:', locationRestrictionEnabled);
+  console.log('Services page - isWithinRadius:', isWithinRadius);
+  console.log('Modal should show:', locationRestrictionEnabled && isWithinRadius === false);
+  console.log('Search query (q):', q);
 
   const displayCategories = useMemo(() => {
     if (!q) return serviceCategories;
@@ -352,21 +360,57 @@ export default function Services() {
     })).filter(cat => cat.services.length > 0);
   }, [q]);
 
+  // Auto-select category based on search query
   useEffect(() => {
-    if (displayCategories.length > 0 && !displayCategories.find(c => c.name === activeCategory)) {
+    if (q && displayCategories.length > 0) {
+      // First, try to find a category that contains the query
+      const matchedCategory = displayCategories.find(cat =>
+        cat.services.some(s => s.name.toLowerCase().includes(q.toLowerCase()))
+      );
+      
+      if (matchedCategory) {
+        setActiveCategory(matchedCategory.name);
+      } else if (displayCategories.length > 0) {
+        // Fallback to first category if no exact match
+        setActiveCategory(displayCategories[0].name);
+      }
+    } else if (displayCategories.length > 0 && !displayCategories.find(c => c.name === activeCategory)) {
       setActiveCategory(displayCategories[0].name);
     }
-  }, [displayCategories, activeCategory]);
+  }, [displayCategories, q]);
 
   return (
     <div className="relative min-h-screen bg-surface-cream text-foreground overflow-hidden font-sans">
+      {/* Location Restriction Block */}
+      {locationRestrictionEnabled && isWithinRadius === false && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
+            <div className="mb-6 flex justify-center">
+              <div className="bg-red-100 p-4 rounded-full">
+                <Lock className="w-8 h-8 text-red-600" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-brand-deep-navy mb-2">Location Restricted</h2>
+            <p className="text-gray-600 mb-6">
+              Services are only available within 15km of Delhi. You are currently outside the service area.
+            </p>
+            <button 
+              onClick={() => window.history.back()}
+              className="w-full bg-brand-deep-navy text-white font-semibold py-3 rounded-lg hover:bg-brand-deep-navy/90 transition-colors"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Decorative Background Blobs */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-brand-orange/10 rounded-full blur-3xl opacity-60"></div>
-        <div className="absolute top-40 -left-40 w-[500px] h-[500px] bg-brand-teal/10 rounded-full blur-3xl opacity-60"></div>
-        <div className="absolute -bottom-40 left-1/3 w-[600px] h-[600px] bg-purple-400/5 rounded-full blur-3xl opacity-60"></div>
+        <div className="absolute -top-40 -right-40 w-125 h-125 bg-brand-orange/10 rounded-full blur-3xl opacity-60"></div>
+        <div className="absolute top-40 -left-40 w-125 h-125 bg-brand-teal/10 rounded-full blur-3xl opacity-60"></div>
+        <div className="absolute -bottom-40 left-1/3 w-150 h-150 bg-purple-400/5 rounded-full blur-3xl opacity-60"></div>
       </div>
-      <div className="relative z-10 max-w-7xl mx-auto pb-16 pt-4 px-4 sm:px-6 lg:px-8">
+      <div className="relative z-20 max-w-7xl mx-auto pb-16 pt-4 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Category Sidebar Navigation */}
           <div className="lg:w-1/4 flex flex-col gap-2">

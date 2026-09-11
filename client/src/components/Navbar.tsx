@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -8,97 +8,20 @@ import {
   User as UserIcon,
   LogOut,
   HelpCircle,
-  Loader
+  ChevronDown
 } from "lucide-react";
 
 const supportedLocations = ["Kakinada", "Kathipudi", "Tuni", "Annavaram"];
 
-// Function to get nearest city based on coordinates
-async function getNearestCity(lat: number, lng: number): Promise<string> {
-  try {
-    console.log(`Getting city for coordinates: ${lat}, ${lng}`);
-    
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
-      {
-        headers: {
-          'Accept-Language': 'en'
-        }
-      }
-    );
-    const data = await response.json();
-    console.log("Nominatim response:", data);
-    
-    // Try different address fields to find city
-    const city = data.address?.city || 
-                 data.address?.town || 
-                 data.address?.village || 
-                 data.address?.county ||
-                 data.name ||
-                 "Unknown";
-    
-    console.log("Detected city:", city);
-    
-    // Check if city is in supported locations
-    const supportedCity = supportedLocations.find(
-      loc => city.toLowerCase().includes(loc.toLowerCase()) || loc.toLowerCase().includes(city.toLowerCase())
-    );
-    
-    const result = supportedCity || city || "Kakinada";
-    console.log("Final city result:", result);
-    return result;
-  } catch (error) {
-    console.error("Error getting city from coordinates:", error);
-    return "Kakinada"; // Default fallback
-  }
-}
-
 export function Navbar() {
-  const [location, setLocation] = useState<string | null>(null);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [location, setLocation] = useState("Kakinada");
+  const [locationOpen, setLocationOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
 
-  // Get user's location on component mount
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { latitude, longitude } = position.coords;
-            console.log(`User location obtained: ${latitude}, ${longitude}`);
-            const city = await getNearestCity(latitude, longitude);
-            console.log("Setting location to:", city);
-            setLocation(city);
-            setIsLoadingLocation(false);
-          } catch (error) {
-            console.error("Error processing location:", error);
-            setLocation("Kakinada");
-            setIsLoadingLocation(false);
-          }
-        },
-        (error) => {
-          console.error("Geolocation error:", error.code, error.message);
-          console.log("Using default location: Kakinada");
-          setLocation("Kakinada"); // Fallback to Kakinada
-          setIsLoadingLocation(false);
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-    } else {
-      console.warn("Geolocation not available");
-      setLocation("Kakinada"); // Fallback if geolocation not available
-      setIsLoadingLocation(false);
-    }
-  }, []);
-
   return (
     <header className="relative z-20 border-b border-brand-deep-navy/10 bg-surface-cream/95 backdrop-blur-md">
-      <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
+      <div className="mx-auto flex h-19 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
         <Link to="/" className="flex items-center gap-2.5" aria-label="Zovio home">
           <img src="/zovio-logo.png" alt="Zovio Logo" className="h-10 w-auto object-contain" />
           <span className="font-display text-[22px] font-extrabold tracking-[-0.04em]">Zovio</span>
@@ -111,12 +34,34 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-brand-orange/10 border border-brand-orange/30 sm:px-4">
-            <MapPin className="h-4 w-4 text-brand-orange-strong" aria-hidden="true" />
-            {isLoadingLocation ? (
-              <Loader className="h-4 w-4 text-brand-orange-strong animate-spin" aria-hidden="true" />
-            ) : (
+          <div className="relative">
+            <button
+              type="button"
+              aria-expanded={locationOpen}
+              onClick={() => setLocationOpen((open) => !open)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 bg-brand-orange/10 border border-brand-orange/30 transition-all hover:bg-brand-orange/20 sm:px-4 sm:text-sm"
+            >
+              <MapPin className="h-4 w-4 text-brand-orange-strong" aria-hidden="true" />
               <span className="text-xs font-bold text-brand-orange-strong sm:text-sm">{location}</span>
+              <ChevronDown className={`h-3.5 w-3.5 text-brand-orange-strong transition-transform ${locationOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+            </button>
+            {locationOpen && (
+              <div className="absolute right-0 top-12 w-48 rounded-xl border border-brand-deep-navy/10 bg-background p-1.5 shadow-xl">
+                {supportedLocations.map((city) => (
+                  <button
+                    key={city}
+                    type="button"
+                    onClick={() => {
+                      setLocation(city);
+                      setLocationOpen(false);
+                    }}
+                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-brand-deep-navy transition-colors hover:bg-brand-orange/10"
+                  >
+                    <MapPin className="mr-2 h-3.5 w-3.5 text-brand-teal" aria-hidden="true" />
+                    {city}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           

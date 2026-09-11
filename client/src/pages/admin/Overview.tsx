@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Users, Briefcase, DollarSign, MapPin } from 'lucide-react';
+import { Users, Briefcase, DollarSign, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
+import { useLocationRestriction } from '../../contexts/LocationRestrictionContext';
 
 export default function Overview() {
   // Mock data for now, eventually fetched from API
@@ -30,6 +31,82 @@ export default function Overview() {
     { id: 3, customer: 'Vikram Reddy', worker: 'Rajesh Kumar', title: 'Billing Issue', description: 'Charged more than quoted price', date: '2026-10-10', status: 'In Progress', priority: 'High' },
   ]);
 
+  // Location restriction state from context
+  const { 
+    locationRestrictionEnabled, 
+    setLocationRestrictionEnabled,
+    userLocation,
+    setUserLocation,
+    isWithinRadius,
+    setIsWithinRadius
+  } = useLocationRestriction();
+  
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const RADIUS_KM = 15;
+
+  // Calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Check if user is within radius of supported locations (using center point as example: Delhi)
+  const checkLocationRestriction = (userLat: number, userLng: number): boolean => {
+    // Delhi center coordinates as reference point
+    const delhiCenter = { lat: 28.7041, lng: 77.1025 };
+    const distance = calculateDistance(userLat, userLng, delhiCenter.lat, delhiCenter.lng);
+    return distance <= RADIUS_KM;
+  };
+
+  // Handle location restriction toggle
+  const handleLocationToggle = () => {
+    console.log('Toggle clicked. Current state:', locationRestrictionEnabled);
+    
+    if (!locationRestrictionEnabled) {
+      // Turning ON - request location
+      setLocationError(null);
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log('Location obtained:', latitude, longitude);
+            setUserLocation({ lat: latitude, lng: longitude });
+            const withinRadius = checkLocationRestriction(latitude, longitude);
+            console.log('Within radius:', withinRadius);
+            setIsWithinRadius(withinRadius);
+            setLocationRestrictionEnabled(true);
+            console.log('Location restriction enabled');
+          },
+          (error) => {
+            console.error('Geolocation error:', error);
+            setLocationError(`Unable to access location: ${error.message}`);
+            setIsWithinRadius(null);
+            // Still enable the toggle even if location failed
+            setLocationRestrictionEnabled(true);
+          }
+        );
+      } else {
+        console.warn('Geolocation not supported');
+        setLocationError('Geolocation is not supported by your browser');
+        // Still enable the toggle
+        setLocationRestrictionEnabled(true);
+      }
+    } else {
+      // Turning OFF
+      console.log('Disabling location restriction');
+      setLocationRestrictionEnabled(false);
+      setUserLocation(null);
+      setIsWithinRadius(null);
+      setLocationError(null);
+    }
+  };
+
   const stats = [
     { title: 'Total Users', value: '1,245', icon: <Users className="text-blue-500 w-8 h-8" /> },
     { title: 'Active Services', value: '342', icon: <Briefcase className="text-green-500 w-8 h-8" /> },
@@ -39,6 +116,74 @@ export default function Overview() {
 
   return (
     <div>
+      {/* Location Restriction Toggle */}
+      <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold mb-2">Location Restriction</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {locationRestrictionEnabled 
+                ? `Enable: Users must be within ${RADIUS_KM}km to access services`
+                : `Disable: Users can access services from anywhere`
+              }
+            </p>
+            
+            {locationRestrictionEnabled && (
+              <div className="mt-4 space-y-2">
+                {userLocation && (
+                  <p className="text-sm text-gray-500">
+                    Your Location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                  </p>
+                )}
+                {isWithinRadius !== null && (
+                  <div className={`flex items-center gap-2 p-3 rounded-lg ${
+                    isWithinRadius 
+                      ? 'bg-green-50 border border-green-200' 
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
+                    {isWithinRadius ? (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                    )}
+                    <span className={`text-sm font-semibold ${
+                      isWithinRadius ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {isWithinRadius 
+                        ? `✓ Within ${RADIUS_KM}km radius` 
+                        : `✗ Outside ${RADIUS_KM}km radius`
+                      }
+                    </span>
+                  </div>
+                )}
+                {locationError && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                    <span className="text-sm text-red-600">{locationError}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Toggle Switch */}
+          <button
+            onClick={handleLocationToggle}
+            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+              locationRestrictionEnabled ? 'bg-green-500' : 'bg-gray-300'
+            }`}
+            role="switch"
+            aria-checked={locationRestrictionEnabled}
+            aria-label="Location restriction toggle"
+          >
+            <span
+              className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${
+                locationRestrictionEnabled ? 'translate-x-7' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, i) => (
           <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">

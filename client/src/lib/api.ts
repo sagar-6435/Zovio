@@ -1,8 +1,8 @@
 // API Client for backend communication
 // Support both Vite (VITE_*) and Create React App (REACT_APP_*) environment variables
 export const API_BASE_URL = 
-  import.meta.env.VITE_API_URL || 
-  import.meta.env.REACT_APP_API_URL || 
+  (import.meta.env['VITE_API_URL'] as string | undefined) || 
+  (import.meta.env['REACT_APP_API_URL'] as string | undefined) || 
   'http://localhost:5000/api';
 
 interface ApiResponse<T> {
