@@ -1,5 +1,9 @@
 // API Client for backend communication
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Support both Vite (VITE_*) and Create React App (REACT_APP_*) environment variables
+export const API_BASE_URL = 
+  import.meta.env.VITE_API_URL || 
+  import.meta.env.REACT_APP_API_URL || 
+  'http://localhost:5000/api';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -8,7 +12,7 @@ interface ApiResponse<T> {
   message?: string;
 }
 
-// Generic fetch wrapper
+// Generic fetch wrapper with detailed error logging
 async function apiCall<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -20,22 +24,45 @@ async function apiCall<T>(
       ...options.headers,
     };
 
+    console.log(`[API] ${options.method || 'GET'} ${url}`);
+    if (options.body) {
+      console.log('[API] Request body:', JSON.parse(options.body as string));
+    }
+
     const response = await fetch(url, {
       ...options,
       headers,
     });
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = { message: response.statusText };
+      }
+      console.error(`[API] Error ${response.status}:`, errorData);
+      throw new Error(
+        errorData?.message || 
+        errorData?.error || 
+        `API Error: ${response.status} ${response.statusText}`
+      );
     }
 
     const result = await response.json();
-    return result;
+    console.log(`[API] Success response:`, result);
+    
+    // Server returns data directly, wrap it in our expected format
+    if (result && typeof result === 'object' && 'success' in result) {
+      return result;
+    }
+    return { success: true, data: result };
   } catch (error) {
-    console.error('API Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[API] Error:', errorMessage);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
     };
   }
 }
@@ -141,7 +168,7 @@ export const complaintAPI = {
 
 // ============ ANALYTICS APIs ============
 export const analyticsAPI = {
-  getDashboard: async () => apiCall('/analytics/dashboard'),
+  getDashboard: async () => apiCall('/analytics'),
   getRevenue: async (dateRange: string = 'month') =>
     apiCall(`/analytics/revenue?range=${dateRange}`),
   getServices: async () => apiCall('/analytics/services'),

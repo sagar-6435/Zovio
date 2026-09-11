@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNavbar } from "../components/BottomNavbar";
+import { Navbar } from "../components/Navbar";
 import { AuthProvider } from "../contexts/AuthContext";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -100,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/zovio-logo.png", type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,
@@ -126,13 +127,14 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your_google_client_id_here';
+  const clientId = import.meta.env['VITE_GOOGLE_CLIENT_ID'] || 'your_google_client_id_here';
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <div className="pb-16 lg:pb-0">
+            <Navbar />
             <Outlet />
           </div>
           <BottomNavbar />

@@ -20,6 +20,11 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Environment variables - NEVER commit secrets/API keys
+.env
+.env.local
+.env.*.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -30,3 +35,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backend (if included in repo)
+backend/
+server/
+.env.backend
+.env.server
+
+# Temporary and cache files
+.cache/
+.turbo/
+.next/
+out/
+
+# OS specific
+Thumbs.db
+.thumbs.db

@@ -1,84 +1,259 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus, Trash2, Edit2, Eye, Search, Filter, Download, Tag, Zap, ToggleLeft, ToggleRight,
-  Users, TrendingUp, DollarSign, X
+  Users, TrendingUp, DollarSign, X, AlertCircle, CheckCircle
 } from 'lucide-react';
 
+import { serviceAPI } from '../../lib/api';
+
+// Service Form Modal Component
+function ServiceFormModal({ service, onClose, onSave }: { service: any; onClose: () => void; onSave: (data: any) => void }) {
+  const [formData, setFormData] = useState(service ? {
+    name: service.name,
+    description: service.description,
+    category: service.category,
+    basePrice: service.basePrice,
+    icon: service.icon,
+    minPrice: service.minPrice || '',
+    maxPrice: service.maxPrice || '',
+  } : {
+    name: '',
+    description: '',
+    category: 'Home & Repair',
+    basePrice: '',
+    icon: '🛠️',
+    minPrice: '',
+    maxPrice: '',
+  });
+
+  const [errors, setErrors] = useState<any>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const categories = ['Home & Repair', 'Cleaning', 'Appliances', 'Technology', 'Beauty', 'Transportation'];
+  const icons = ['🛠️', '🧹', '❄️', '💻', '💄', '🚗', '📚', '🏋️', '🍳', '🏠'];
+
+  const validateForm = () => {
+    const newErrors: any = {};
+    
+    if (!formData.name.trim()) newErrors.name = 'Service name is required';
+    if (!formData.description.trim()) newErrors.description = 'Description is required';
+    if (!formData.basePrice || parseFloat(formData.basePrice) <= 0) newErrors.basePrice = 'Valid price is required';
+    if (formData.minPrice && parseFloat(formData.minPrice) < 0) newErrors.minPrice = 'Minimum price cannot be negative';
+    if (formData.maxPrice && parseFloat(formData.maxPrice) < 0) newErrors.maxPrice = 'Maximum price cannot be negative';
+    if (formData.minPrice && formData.maxPrice && parseFloat(formData.minPrice) > parseFloat(formData.maxPrice)) {
+      newErrors.maxPrice = 'Maximum price must be greater than minimum price';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      const submitData = {
+        ...formData,
+        basePrice: parseFloat(formData.basePrice),
+        minPrice: formData.minPrice ? parseFloat(formData.minPrice) : undefined,
+        maxPrice: formData.maxPrice ? parseFloat(formData.maxPrice) : undefined,
+      };
+
+      if (service) {
+        await serviceAPI.update(service._id, submitData);
+      } else {
+        await serviceAPI.create(submitData);
+      }
+
+      onSave(submitData);
+      onClose();
+    } catch (error) {
+      console.error('Error saving service:', error);
+      setErrors({ submit: 'Failed to save service. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-100 p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-brand-deep-navy">
+            {service ? 'Edit Service' : 'Add New Service'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {errors.submit && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-red-700 text-sm">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Icon Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">Service Icon</label>
+            <div className="grid grid-cols-5 gap-2">
+              {icons.map(icon => (
+                <button
+                  key={icon}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, icon })}
+                  className={`p-4 rounded-lg text-2xl transition-all ${
+                    formData.icon === icon
+                      ? 'bg-brand-teal text-white border-2 border-brand-teal'
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  {icon}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Service Name */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Service Name *</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                errors.name ? 'border-red-500' : 'border-gray-200'
+              }`}
+              placeholder="Enter service name"
+            />
+            {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                errors.description ? 'border-red-500' : 'border-gray-200'
+              }`}
+              placeholder="Describe the service"
+              rows={4}
+            />
+            {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
+            >
+              {categories.map(cat => <option key={cat}>{cat}</option>)}
+            </select>
+          </div>
+
+          {/* Pricing */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Base Price *</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.basePrice}
+                onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                  errors.basePrice ? 'border-red-500' : 'border-gray-200'
+                }`}
+                placeholder="0.00"
+              />
+              {errors.basePrice && <p className="text-red-600 text-sm mt-1">{errors.basePrice}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Min Price</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.minPrice}
+                onChange={(e) => setFormData({ ...formData, minPrice: e.target.value })}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                  errors.minPrice ? 'border-red-500' : 'border-gray-200'
+                }`}
+                placeholder="0.00"
+              />
+              {errors.minPrice && <p className="text-red-600 text-sm mt-1">{errors.minPrice}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Max Price</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.maxPrice}
+                onChange={(e) => setFormData({ ...formData, maxPrice: e.target.value })}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                  errors.maxPrice ? 'border-red-500' : 'border-gray-200'
+                }`}
+                placeholder="0.00"
+              />
+              {errors.maxPrice && <p className="text-red-600 text-sm mt-1">{errors.maxPrice}</p>}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-6 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2 bg-brand-teal text-white rounded-lg hover:bg-brand-teal/90 transition-colors font-semibold disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : (service ? 'Update Service' : 'Add Service')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ServiceManagement() {
-  const [services, setServices] = useState([
-    {
-      id: 1,
-      name: 'Plumbing Repair',
-      category: 'Home & Repair',
-      description: 'Expert plumbing repairs for all types of leaks and issues',
-      icon: '🔧',
-      basePrice: '₹350',
-      active: true,
-      workersAvailable: 12,
-      completedServices: 456,
-      avgRating: 4.8,
-      demandLevel: 'High'
-    },
-    {
-      id: 2,
-      name: 'Electrical Installation',
-      category: 'Home & Repair',
-      description: 'Professional electrical wiring and installation services',
-      icon: '⚡',
-      basePrice: '₹500',
-      active: true,
-      workersAvailable: 8,
-      completedServices: 234,
-      avgRating: 4.6,
-      demandLevel: 'Medium'
-    },
-    {
-      id: 3,
-      name: 'Carpentry Work',
-      category: 'Home & Repair',
-      description: 'Custom carpentry and wooden furniture solutions',
-      icon: '🪛',
-      basePrice: '₹800',
-      active: true,
-      workersAvailable: 6,
-      completedServices: 189,
-      avgRating: 4.9,
-      demandLevel: 'High'
-    },
-    {
-      id: 4,
-      name: 'House Cleaning',
-      category: 'Cleaning',
-      description: 'Comprehensive house cleaning and maintenance',
-      icon: '🧹',
-      basePrice: '₹600',
-      active: true,
-      workersAvailable: 15,
-      completedServices: 789,
-      avgRating: 4.7,
-      demandLevel: 'Very High'
-    },
-    {
-      id: 5,
-      name: 'AC Repair & Service',
-      category: 'Appliances',
-      description: 'AC servicing, repair, and gas filling services',
-      icon: '❄️',
-      basePrice: '₹450',
-      active: false,
-      workersAvailable: 4,
-      completedServices: 123,
-      avgRating: 4.5,
-      demandLevel: 'Medium'
-    },
-  ]);
+  const [services, setServices] = useState<any[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [showModal, setShowModal] = useState(false);
-  const [selectedService, setSelectedService] = useState(null);
+  const [selectedService, setSelectedService] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const fetchServices = async () => {
+    try {
+      const res = await serviceAPI.getAll();
+      setServices(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error('Failed to fetch services:', error);
+    }
+  };
 
   const categories = ['All', 'Home & Repair', 'Cleaning', 'Appliances', 'Technology', 'Beauty'];
   const demandLevels = ['Very High', 'High', 'Medium', 'Low'];
@@ -91,13 +266,23 @@ export default function ServiceManagement() {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const handleToggleStatus = (id) => {
-    setServices(services.map(s => s.id === id ? { ...s, active: !s.active } : s));
+  const handleToggleStatus = async (id: string, active: boolean) => {
+    try {
+      await serviceAPI.toggleStatus(id, !active);
+      fetchServices();
+    } catch (err) {
+      console.error('Failed to toggle status:', err);
+    }
   };
 
-  const handleDeleteService = (id) => {
+  const handleDeleteService = async (id: string) => {
     if (confirm('Are you sure you want to delete this service?')) {
-      setServices(services.filter(s => s.id !== id));
+      try {
+        await serviceAPI.delete(id);
+        fetchServices();
+      } catch (err) {
+        console.error('Failed to delete service:', err);
+      }
     }
   };
 
@@ -105,7 +290,7 @@ export default function ServiceManagement() {
     const csv = [
       ['ID', 'Name', 'Category', 'Base Price', 'Status', 'Workers', 'Completed', 'Rating', 'Demand'],
       ...filteredServices.map(s => [
-        s.id, s.name, s.category, s.basePrice, s.active ? 'Active' : 'Inactive',
+        s._id, s.name, s.category, s.basePrice, s.active ? 'Active' : 'Inactive',
         s.workersAvailable, s.completedServices, s.avgRating, s.demandLevel
       ])
     ].map(row => row.join(',')).join('\n');
@@ -189,7 +374,7 @@ export default function ServiceManagement() {
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredServices.map((service) => (
-            <div key={service.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all">
+            <div key={service._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-start gap-3">
                   <span className="text-3xl">{service.icon}</span>
@@ -199,7 +384,7 @@ export default function ServiceManagement() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleToggleStatus(service.id)}
+                  onClick={() => handleToggleStatus(service._id, service.active)}
                   className={`p-2 rounded-lg transition-colors ${
                     service.active
                       ? 'bg-green-100 text-green-600'
@@ -256,7 +441,7 @@ export default function ServiceManagement() {
                   <Edit2 className="w-4 h-4 inline mr-1" /> Edit
                 </button>
                 <button
-                  onClick={() => handleDeleteService(service.id)}
+                  onClick={() => handleDeleteService(service._id)}
                   className="flex-1 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors font-semibold"
                 >
                   <Trash2 className="w-4 h-4 inline mr-1" /> Delete
@@ -341,6 +526,9 @@ export default function ServiceManagement() {
           </div>
         </div>
       )}
+
+      {/* Form Modal */}
+      {showModal && <ServiceFormModal service={selectedService} onClose={() => setShowModal(false)} onSave={() => fetchServices()} />}
     </div>
   );
 }

@@ -1,101 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MessageSquare, AlertCircle, Eye, Check, X, Filter, Search, Download, Phone, Mail,
   Clock, User, Briefcase, Reply, Archive
 } from 'lucide-react';
 
+import { complaintAPI } from '../../lib/api';
+
 export default function ComplaintsQueries() {
-  const [items, setItems] = useState([
-    {
-      id: 1,
-      type: 'Complaint',
-      title: 'Poor Service Quality',
-      customer: 'Rajesh Kumar',
-      worker: 'Priya Singh',
-      service: 'Electrical Work',
-      description: 'The electrical work was not completed properly. Wires were not properly insulated.',
-      dateSubmitted: '2026-10-12',
-      priority: 'High',
-      status: 'Open',
-      resolution: null,
-      attachments: 1,
-      assignedTo: 'Admin Team'
-    },
-    {
-      id: 2,
-      type: 'Query',
-      title: 'How to book a service?',
-      customer: 'Sneha Desai',
-      description: 'I am new to the platform. Can someone guide me on how to book a service?',
-      dateSubmitted: '2026-10-11',
-      priority: 'Low',
-      status: 'Resolved',
-      resolution: 'Sent user guide and tutorial video',
-      assignedTo: 'Support Team'
-    },
-    {
-      id: 3,
-      type: 'Complaint',
-      title: 'Late Arrival',
-      customer: 'Vikram Reddy',
-      worker: 'Amit Patel',
-      service: 'Carpentry Work',
-      description: 'Worker arrived 45 minutes late without any prior notice.',
-      dateSubmitted: '2026-10-10',
-      priority: 'Medium',
-      status: 'In Progress',
-      resolution: 'Investigating and collecting worker response',
-      assignedTo: 'Grievance Officer'
-    },
-    {
-      id: 4,
-      type: 'Complaint',
-      title: 'Billing Discrepancy',
-      customer: 'Anmol Singh',
-      worker: 'Rajesh Kumar',
-      service: 'Plumbing Repair',
-      description: 'Charged ₹200 more than the quoted price. No explanation provided.',
-      dateSubmitted: '2026-10-09',
-      priority: 'High',
-      status: 'Open',
-      resolution: null,
-      assignedTo: 'Billing Team'
-    },
-    {
-      id: 5,
-      type: 'Query',
-      title: 'Cancellation Policy',
-      customer: 'Priya Sharma',
-      description: 'What is the cancellation policy if I need to cancel a booking?',
-      dateSubmitted: '2026-10-08',
-      priority: 'Low',
-      status: 'Resolved',
-      resolution: 'Shared detailed cancellation policy document',
-      assignedTo: 'Support Team'
-    },
-    {
-      id: 6,
-      type: 'Complaint',
-      title: 'Safety Concerns',
-      customer: 'Harsh Verma',
-      worker: 'Unknown',
-      service: 'AC Service',
-      description: 'Worker did not follow safety protocols during AC servicing.',
-      dateSubmitted: '2026-10-07',
-      priority: 'Critical',
-      status: 'In Progress',
-      resolution: 'Safety investigation initiated',
-      assignedTo: 'Safety Officer'
-    },
-  ]);
+  const [items, setItems] = useState<any[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterPriority, setFilterPriority] = useState('All');
   const [showModal, setShowModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   const [reply, setReply] = useState('');
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const fetchItems = async () => {
+    try {
+      const res = await complaintAPI.getAll();
+      setItems(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error('Failed to fetch complaints:', error);
+    }
+  };
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -106,19 +39,25 @@ export default function ComplaintsQueries() {
     return matchesSearch && matchesType && matchesStatus && matchesPriority;
   });
 
-  const handleStatusChange = (id, newStatus) => {
-    setItems(items.map(item =>
-      item.id === id ? { ...item, status: newStatus } : item
-    ));
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      await complaintAPI.updateStatus(id, newStatus);
+      fetchItems();
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
   };
 
-  const handleReply = (id) => {
+  const handleReply = async (id: string) => {
     if (reply.trim()) {
-      setItems(items.map(item =>
-        item.id === id ? { ...item, resolution: reply, status: 'Resolved' } : item
-      ));
-      setReply('');
-      setShowModal(false);
+      try {
+        await complaintAPI.addResponse(id, reply);
+        fetchItems();
+        setReply('');
+        setShowModal(false);
+      } catch (err) {
+        console.error('Failed to add reply:', err);
+      }
     }
   };
 
@@ -145,7 +84,7 @@ export default function ComplaintsQueries() {
     const csv = [
       ['ID', 'Type', 'Title', 'Customer', 'Priority', 'Status', 'Date', 'Resolution'],
       ...filteredItems.map(item => [
-        item.id, item.type, item.title, item.customer, item.priority, item.status, item.dateSubmitted, item.resolution || 'Pending'
+        item._id, item.type, item.title, item.customer, item.priority, item.status, item.createdAt, item.resolution || 'Pending'
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -257,7 +196,7 @@ export default function ComplaintsQueries() {
         {/* Items List */}
         <div className="space-y-4">
           {filteredItems.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all">
+            <div key={item._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -284,7 +223,7 @@ export default function ComplaintsQueries() {
                       </span>
                     )}
                     <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" /> {item.dateSubmitted}
+                      <Clock className="w-4 h-4" /> {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}
                     </span>
                   </div>
                 </div>
@@ -309,7 +248,7 @@ export default function ComplaintsQueries() {
                   {item.status !== 'Resolved' && (
                     <select
                       value={item.status}
-                      onChange={(e) => handleStatusChange(item.id, e.target.value)}
+                      onChange={(e) => handleStatusChange(item._id, e.target.value)}
                       className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
                     >
                       <option>Open</option>
@@ -393,7 +332,7 @@ export default function ComplaintsQueries() {
                     <Clock className="w-5 h-5 text-gray-600" />
                     <div>
                       <p className="text-sm text-gray-600">Submitted</p>
-                      <p className="font-bold text-gray-900">{selectedItem.dateSubmitted}</p>
+                      <p className="font-bold text-gray-900">{selectedItem.createdAt ? new Date(selectedItem.createdAt).toLocaleDateString() : ''}</p>
                     </div>
                   </div>
                 </div>
@@ -421,7 +360,7 @@ export default function ComplaintsQueries() {
                     rows="4"
                   />
                   <button
-                    onClick={() => handleReply(selectedItem.id)}
+                    onClick={() => handleReply(selectedItem._id)}
                     className="mt-4 px-4 py-2 bg-brand-teal text-white rounded-lg hover:bg-brand-teal/90 transition-colors font-semibold"
                   >
                     <Reply className="w-4 h-4 inline mr-2" /> Send Response

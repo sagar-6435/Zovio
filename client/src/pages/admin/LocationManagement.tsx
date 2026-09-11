@@ -1,78 +1,242 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus, Trash2, Edit2, Eye, Search, Download, MapPin, Users, Briefcase, DollarSign,
-  TrendingUp, Clock, CheckCircle, X
+  TrendingUp, Clock, CheckCircle, X, AlertCircle
 } from 'lucide-react';
 
+import { locationAPI } from '../../lib/api';
+
+// Location Form Modal Component
+function LocationFormModal({ location, onClose, onSave }: { location: any; onClose: () => void; onSave: (data: any) => void }) {
+  const [formData, setFormData] = useState(location ? {
+    name: location.name,
+    zone: location.zone,
+    city: location.city,
+    state: location.state,
+    pincode: location.pincode,
+    serviceRadius: location.serviceRadius || '',
+    operatingHours: location.operatingHours || '9:00 AM - 9:00 PM',
+  } : {
+    name: '',
+    zone: '',
+    city: '',
+    state: '',
+    pincode: '',
+    serviceRadius: '',
+    operatingHours: '9:00 AM - 9:00 PM',
+  });
+
+  const [errors, setErrors] = useState<any>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const states = ['Delhi', 'Mumbai', 'Bangalore', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad'];
+
+  const validateForm = () => {
+    const newErrors: any = {};
+    
+    if (!formData.name.trim()) newErrors.name = 'Location name is required';
+    if (!formData.city.trim()) newErrors.city = 'City is required';
+    if (!formData.state) newErrors.state = 'State is required';
+    if (!formData.pincode.trim()) newErrors.pincode = 'PIN code is required';
+    if (formData.serviceRadius && parseFloat(formData.serviceRadius) <= 0) newErrors.serviceRadius = 'Service radius must be positive';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      const submitData = {
+        ...formData,
+        serviceRadius: formData.serviceRadius ? parseFloat(formData.serviceRadius) : 5,
+      };
+
+      if (location) {
+        await locationAPI.update(location._id, submitData);
+      } else {
+        await locationAPI.create(submitData);
+      }
+
+      onSave(submitData);
+      onClose();
+    } catch (error) {
+      console.error('Error saving location:', error);
+      setErrors({ submit: 'Failed to save location. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-100 p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-brand-deep-navy">
+            {location ? 'Edit Location' : 'Add New Location'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {errors.submit && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-red-700 text-sm">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Location Name */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Location Name *</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                errors.name ? 'border-red-500' : 'border-gray-200'
+              }`}
+              placeholder="e.g., North Delhi Center"
+            />
+            {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
+          </div>
+
+          {/* Zone */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Zone *</label>
+            <input
+              type="text"
+              value={formData.zone}
+              onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
+              placeholder="e.g., North, Central, South"
+            />
+          </div>
+
+          {/* City & State */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">City *</label>
+              <input
+                type="text"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                  errors.city ? 'border-red-500' : 'border-gray-200'
+                }`}
+                placeholder="City name"
+              />
+              {errors.city && <p className="text-red-600 text-sm mt-1">{errors.city}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">State *</label>
+              <select
+                value={formData.state}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                  errors.state ? 'border-red-500' : 'border-gray-200'
+                }`}
+              >
+                <option value="">Select state</option>
+                {states.map(state => <option key={state}>{state}</option>)}
+              </select>
+              {errors.state && <p className="text-red-600 text-sm mt-1">{errors.state}</p>}
+            </div>
+          </div>
+
+          {/* PIN Code */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Service PIN Codes *</label>
+            <textarea
+              value={formData.pincode}
+              onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal ${
+                errors.pincode ? 'border-red-500' : 'border-gray-200'
+              }`}
+              placeholder="Enter PIN codes (comma separated)"
+              rows={3}
+            />
+            {errors.pincode && <p className="text-red-600 text-sm mt-1">{errors.pincode}</p>}
+          </div>
+
+          {/* Service Radius */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Service Radius (km)</label>
+            <input
+              type="number"
+              step="0.5"
+              value={formData.serviceRadius}
+              onChange={(e) => setFormData({ ...formData, serviceRadius: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
+              placeholder="Default: 5 km"
+            />
+            {errors.serviceRadius && <p className="text-red-600 text-sm mt-1">{errors.serviceRadius}</p>}
+          </div>
+
+          {/* Operating Hours */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Operating Hours</label>
+            <input
+              type="text"
+              value={formData.operatingHours}
+              onChange={(e) => setFormData({ ...formData, operatingHours: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
+              placeholder="e.g., 9:00 AM - 9:00 PM"
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-6 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2 bg-brand-teal text-white rounded-lg hover:bg-brand-teal/90 transition-colors font-semibold disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : (location ? 'Update Location' : 'Add Location')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function LocationManagement() {
-  const [locations, setLocations] = useState([
-    {
-      id: 1,
-      name: 'North Delhi',
-      zone: 'Delhi NCR',
-      city: 'Delhi',
-      state: 'Delhi',
-      pincode: '110001-110096',
-      activeWorkers: 12,
-      activeServices: 8,
-      revenue: '₹45,000',
-      monthlyBookings: 234,
-      avgRating: 4.7,
-      status: 'Active',
-      operatingSince: '2025-06-15'
-    },
-    {
-      id: 2,
-      name: 'South Delhi',
-      zone: 'Delhi NCR',
-      city: 'Delhi',
-      state: 'Delhi',
-      pincode: '110014-110030',
-      activeWorkers: 15,
-      activeServices: 10,
-      revenue: '₹58,500',
-      monthlyBookings: 312,
-      avgRating: 4.8,
-      status: 'Active',
-      operatingSince: '2025-05-20'
-    },
-    {
-      id: 3,
-      name: 'East Delhi',
-      zone: 'Delhi NCR',
-      city: 'Delhi',
-      state: 'Delhi',
-      pincode: '110092-110097',
-      activeWorkers: 8,
-      activeServices: 6,
-      revenue: '₹32,000',
-      monthlyBookings: 145,
-      avgRating: 4.5,
-      status: 'Active',
-      operatingSince: '2025-07-10'
-    },
-    {
-      id: 4,
-      name: 'West Delhi',
-      zone: 'Delhi NCR',
-      city: 'Delhi',
-      state: 'Delhi',
-      pincode: '110015-110087',
-      activeWorkers: 10,
-      activeServices: 7,
-      revenue: '₹38,500',
-      monthlyBookings: 178,
-      avgRating: 4.6,
-      status: 'Active',
-      operatingSince: '2025-06-25'
-    },
-  ]);
+  const [locations, setLocations] = useState<any[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [showModal, setShowModal] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  useEffect(() => {
+    fetchLocations();
+  }, []);
+
+  const fetchLocations = async () => {
+    try {
+      const res = await locationAPI.getAll();
+      setLocations(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error('Failed to fetch locations:', error);
+    }
+  };
 
   const filteredLocations = locations.filter(l => {
     const matchesSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,9 +246,14 @@ export default function LocationManagement() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleDeleteLocation = (id) => {
+  const handleDeleteLocation = async (id: string) => {
     if (confirm('Are you sure you want to delete this location?')) {
-      setLocations(locations.filter(l => l.id !== id));
+      try {
+        await locationAPI.delete(id);
+        fetchLocations();
+      } catch (err) {
+        console.error('Failed to delete location:', err);
+      }
     }
   };
 
@@ -165,7 +334,7 @@ export default function LocationManagement() {
         {/* Locations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {filteredLocations.map((location) => (
-            <div key={location.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all">
+            <div key={location._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-start gap-3">
                   <div className="p-3 bg-brand-teal/10 rounded-lg">
@@ -237,7 +406,7 @@ export default function LocationManagement() {
                   <Edit2 className="w-4 h-4 inline mr-1" /> Edit
                 </button>
                 <button
-                  onClick={() => handleDeleteLocation(location.id)}
+                  onClick={() => handleDeleteLocation(location._id)}
                   className="flex-1 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors font-semibold"
                 >
                   <Trash2 className="w-4 h-4 inline mr-1" /> Delete
@@ -347,6 +516,9 @@ export default function LocationManagement() {
           </div>
         </div>
       )}
+
+      {/* Form Modal */}
+      {showModal && <LocationFormModal location={selectedLocation} onClose={() => setShowModal(false)} onSave={() => fetchLocations()} />}
     </div>
   );
 }

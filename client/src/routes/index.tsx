@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -6,20 +6,15 @@ import {
   BadgeCheck,
   Building2,
   CalendarDays,
-  ChevronDown,
   Clock3,
   Home,
   MapPin,
-  Menu,
   Search,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Star,
-  Wrench,
-  X,
-  User as UserIcon,
-  LogOut
+  Wrench
 } from "lucide-react";
 import heroImage from "@/assets/panimatra-home.jpg";
 
@@ -44,13 +39,40 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [location, setLocation] = useState("Bhimavaram");
-  const [locationOpen, setLocationOpen] = useState(false);
+  const [location, setLocation] = useState("Kakinada");
+  const [isInServiceArea, setIsInServiceArea] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setIsInServiceArea(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        let withinRange = false;
+        
+        for (const city of STARTUP_CITIES) {
+          const distance = getDistanceFromLatLonInKm(latitude, longitude, city.lat, city.lon);
+          if (distance <= 15) {
+            withinRange = true;
+            setLocation(city.name);
+            break;
+          }
+        }
+        
+        setIsInServiceArea(withinRange);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        setIsInServiceArea(false);
+      }
+    );
+  }, []);
   const [query, setQuery] = useState("");
   const [savedProperties, setSavedProperties] = useState<string[]>([]);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate({ from: "/" });
-  const { user, isAuthenticated, logout } = useAuth();
 
   const filteredServices = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -66,81 +88,7 @@ function Index() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-surface-cream text-brand-deep-navy">
-      <header className="relative z-20 border-b border-brand-deep-navy/10 bg-surface-cream/95 backdrop-blur-md">
-        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
-          <a href="#top" className="flex items-center gap-2.5" aria-label="Zovio home">
-            <img src="/zovio-logo.png" alt="Zovio Logo" className="h-10 w-auto object-contain" />
-            <span className="font-display text-[22px] font-extrabold tracking-[-0.04em]">Zovio</span>
-          </a>
 
-          <nav className="hidden items-center gap-8 text-sm font-semibold text-ink-soft lg:flex" aria-label="Main navigation">
-            <a className="text-brand-deep-navy transition-colors hover:text-brand-orange-strong" href="#services">Services</a>
-            <a className="transition-colors hover:text-brand-orange-strong" href="#properties">Properties</a>
-            <a className="transition-colors hover:text-brand-orange-strong" href="#how-it-works">How it works</a>
-          </nav>
-
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="relative">
-              <button
-                type="button"
-                aria-expanded={locationOpen}
-                onClick={() => setLocationOpen((open) => !open)}
-                className="flex items-center gap-1.5 rounded-full px-2 py-2 text-xs font-bold text-brand-deep-navy transition-colors hover:bg-brand-orange/15 sm:px-3 sm:text-sm"
-              >
-                <MapPin className="h-4 w-4 text-brand-orange-strong" aria-hidden="true" />
-                <span>{location}</span>
-                <ChevronDown className="h-3.5 w-3.5 text-ink-soft" aria-hidden="true" />
-              </button>
-              {locationOpen && (
-                <div className="absolute right-0 top-12 w-48 rounded-xl border border-brand-deep-navy/10 bg-background p-1.5 shadow-xl">
-                  {locations.map((city) => (
-                    <button
-                      key={city}
-                      type="button"
-                      onClick={() => { setLocation(city); setLocationOpen(false); }}
-                      className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-brand-deep-navy transition-colors hover:bg-brand-orange/10"
-                    >
-                      <MapPin className="mr-2 h-3.5 w-3.5 text-brand-teal" aria-hidden="true" />{city}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button type="button" className="hidden h-10 items-center gap-2 rounded-full border border-brand-deep-navy/15 px-4 text-sm font-bold transition-colors hover:border-brand-orange hover:bg-brand-orange/10 sm:flex">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-teal-soft text-xs text-brand-teal">?</span>
-              <span>Help</span>
-            </button>
-            
-            {isAuthenticated ? (
-              <div className="flex items-center gap-2">
-                <Link to="/profile" className="hidden h-10 items-center gap-2 rounded-full border border-brand-deep-navy/15 px-4 text-sm font-bold transition-colors hover:border-brand-teal hover:bg-brand-teal/10 sm:flex">
-                  <UserIcon className="h-4 w-4 text-brand-teal" />
-                  <span>{user?.name?.split(' ')[0] || 'Profile'}</span>
-                </Link>
-                <button onClick={logout} className="hidden h-10 items-center justify-center rounded-full bg-red-50 text-red-600 px-3 text-sm font-bold transition-colors hover:bg-red-100 sm:flex" title="Logout">
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <Link to="/login" className="hidden h-10 items-center gap-2 rounded-full bg-brand-deep-navy text-white px-5 text-sm font-bold transition-colors hover:bg-brand-deep-navy/90 sm:flex">
-                Login / Register
-              </Link>
-            )}
-            <button type="button" aria-label="Open menu" onClick={() => setMobileMenuOpen((open) => !open)} className="flex h-10 w-10 items-center justify-center rounded-full border border-brand-deep-navy/15 lg:hidden">
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-        {mobileMenuOpen && (
-          <nav className="border-t border-brand-deep-navy/10 px-5 py-4 lg:hidden" aria-label="Mobile navigation">
-            <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm font-bold">
-              <a href="#services" onClick={() => setMobileMenuOpen(false)}>Services</a>
-              <a href="#properties" onClick={() => setMobileMenuOpen(false)}>Properties</a>
-              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How it works</a>
-            </div>
-          </nav>
-        )}
-      </header>
 
       <main id="top">
         <section className="mx-auto grid max-w-7xl items-center gap-10 px-5 pb-14 pt-10 sm:px-8 sm:pt-16 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16 lg:px-10 lg:pb-20 lg:pt-20">
@@ -189,7 +137,26 @@ function Index() {
           </div>
         </section>
 
-        <section id="services" className="border-y border-brand-deep-navy/10 bg-background">
+        {isInServiceArea === null ? (
+          <div className="flex min-h-[40vh] flex-col items-center justify-center py-20 text-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand-teal border-t-transparent"></div>
+            <p className="mt-4 text-sm font-bold text-ink-soft">Checking your location...</p>
+          </div>
+        ) : isInServiceArea === false ? (
+          <div className="flex min-h-[40vh] flex-col items-center justify-center px-5 py-20 text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-orange/20 text-brand-orange-strong">
+              <MapPin className="h-10 w-10" />
+            </div>
+            <h2 className="mt-6 font-display text-3xl font-extrabold tracking-[-0.045em] text-brand-deep-navy sm:text-4xl">
+              We will be there soon...
+            </h2>
+            <p className="mt-4 max-w-md text-base leading-7 text-ink-soft">
+              Currently, Zovio services are only available within a 15km radius of Kakinada, Kathipudi, Annavaram, and Tuni.
+            </p>
+          </div>
+        ) : (
+          <>
+            <section id="services" className="border-y border-brand-deep-navy/10 bg-background">
           <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-orange-strong">What can we help with?</p><h2 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.045em] sm:text-4xl">Everything local, in one place.</h2></div>
@@ -221,6 +188,8 @@ function Index() {
             </article>)}
           </div>
         </section>
+          </>
+        )}
 
         <section id="how-it-works" className="bg-brand-deep-navy text-background">
           <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[0.75fr_1.25fr] lg:px-10 lg:py-16"><div><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-orange">Simple by design</p><h2 className="mt-3 max-w-sm font-display text-3xl font-extrabold tracking-[-0.05em] sm:text-4xl">A better way to get things done.</h2></div><div className="grid gap-7 sm:grid-cols-3">{steps.map((step, index) => <div key={step.title} className="border-t border-background/20 pt-4"><span className="font-display text-3xl font-extrabold text-brand-orange">0{index + 1}</span><h3 className="mt-5 text-base font-extrabold">{step.title}</h3><p className="mt-2 text-sm leading-6 text-background/65">{step.description}</p></div>)}</div></div>
@@ -253,3 +222,22 @@ const steps = [
   { title: "Pick your trusted pro", description: "Compare ratings, verification, availability, and transparent pricing." },
   { title: "Relax, it’s handled", description: "Track the job from start to finish with support whenever you need it." },
 ];
+
+const STARTUP_CITIES = [
+  { name: "Kakinada", lat: 16.9654, lon: 82.2392 },
+  { name: "Kathipudi", lat: 17.2500, lon: 82.3333 },
+  { name: "Annavaram", lat: 17.2833, lon: 82.3833 },
+  { name: "Tuni", lat: 17.3590, lon: 82.5461 },
+];
+
+function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d;
+}

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings as SettingsIcon, Save, X, AlertCircle, CheckCircle, Eye, EyeOff,
   Mail, Bell, Lock, Users, Briefcase, MapPin, CreditCard, Shield, HardDrive
 } from 'lucide-react';
+import { settingsAPI } from '../../lib/api';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
@@ -37,18 +38,42 @@ export default function Settings() {
   const [edited, setEdited] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
 
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await settingsAPI.get();
+      if (res.data && Array.isArray(res.data)) {
+        const loadedSettings: any = {};
+        res.data.forEach((s: any) => {
+          loadedSettings[s.key] = s.value;
+        });
+        setSettings(prev => ({ ...prev, ...loadedSettings }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    }
+  };
+
   const handleChange = (key: keyof typeof settings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
     setEdited(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaveMessage('Saving...');
-    setTimeout(() => {
+    try {
+      await settingsAPI.updateMultiple(settings);
       setSaveMessage('✓ Settings saved successfully!');
       setEdited(false);
       setTimeout(() => setSaveMessage(''), 3000);
-    }, 1000);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      setSaveMessage('❌ Failed to save settings.');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
   };
 
   const renderGeneralSettings = () => (

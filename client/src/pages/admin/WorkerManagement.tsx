@@ -1,61 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus, Trash2, Edit2, Eye, Search, Filter, Download, Phone, Mail, MapPin,
   Calendar, Star, CheckCircle, AlertCircle, X
 } from 'lucide-react';
+import { workerAPI } from '../../lib/api';
 
 export default function WorkerManagement() {
-  const [workers, setWorkers] = useState([
-    {
-      id: 1,
-      name: 'Rajesh Kumar',
-      email: 'rajesh@example.com',
-      phone: '+91 98765 43210',
-      service: 'Plumbing',
-      location: 'North Delhi',
-      status: 'Active',
-      joinDate: '2026-01-15',
-      rating: 4.8,
-      completedJobs: 145,
-      verification: 'Verified',
-      bankDetails: 'Yes'
-    },
-    {
-      id: 2,
-      name: 'Priya Singh',
-      email: 'priya@example.com',
-      phone: '+91 97654 32109',
-      service: 'Electrical',
-      location: 'South Delhi',
-      status: 'Active',
-      joinDate: '2026-02-20',
-      rating: 4.9,
-      completedJobs: 189,
-      verification: 'Verified',
-      bankDetails: 'Yes'
-    },
-    {
-      id: 3,
-      name: 'Amit Patel',
-      email: 'amit@example.com',
-      phone: '+91 96543 21098',
-      service: 'Carpentry',
-      location: 'East Delhi',
-      status: 'Inactive',
-      joinDate: '2025-12-10',
-      rating: 4.5,
-      completedJobs: 87,
-      verification: 'Pending',
-      bankDetails: 'No'
-    },
-  ]);
-
+  const [workers, setWorkers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterService, setFilterService] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [showModal, setShowModal] = useState(false);
-  const [selectedWorker, setSelectedWorker] = useState(null);
+  const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  useEffect(() => {
+    fetchWorkers();
+  }, []);
+
+  const fetchWorkers = async () => {
+    try {
+      const res = await workerAPI.getAll();
+      setWorkers(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error('Failed to fetch workers:', error);
+    }
+  };
 
   const services = ['All', 'Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'AC Repair'];
   const statuses = ['All', 'Active', 'Inactive', 'Suspended'];
@@ -69,9 +39,14 @@ export default function WorkerManagement() {
     return matchesSearch && matchesService && matchesStatus;
   });
 
-  const handleDeleteWorker = (id) => {
+  const handleDeleteWorker = async (id: string) => {
     if (confirm('Are you sure you want to delete this worker?')) {
-      setWorkers(workers.filter(w => w.id !== id));
+      try {
+        await workerAPI.delete(id);
+        fetchWorkers();
+      } catch (err) {
+        console.error('Failed to delete worker:', err);
+      }
     }
   };
 
@@ -79,7 +54,7 @@ export default function WorkerManagement() {
     const csv = [
       ['ID', 'Name', 'Email', 'Phone', 'Service', 'Location', 'Status', 'Rating', 'Completed Jobs'],
       ...filteredWorkers.map(w => [
-        w.id, w.name, w.email, w.phone, w.service, w.location, w.status, w.rating, w.completedJobs
+        w._id, w.name, w.email, w.phone, w.service, w.location, w.status, w.rating, w.completedJobs
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -175,7 +150,7 @@ export default function WorkerManagement() {
               </thead>
               <tbody>
                 {filteredWorkers.map((worker) => (
-                  <tr key={worker.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={worker._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <p className="font-semibold text-gray-900">{worker.name}</p>
                     </td>
@@ -233,7 +208,7 @@ export default function WorkerManagement() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteWorker(worker.id)}
+                          onClick={() => handleDeleteWorker(worker._id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                           title="Delete"
                         >
@@ -248,6 +223,28 @@ export default function WorkerManagement() {
           </div>
         </div>
       </div>
+
+      {/* Add/Edit Worker Modal */}
+      {showModal && (
+        <WorkerFormModal
+          worker={selectedWorker}
+          onClose={() => { setShowModal(false); setSelectedWorker(null); }}
+          onSave={async (data) => {
+            try {
+              if (selectedWorker) {
+                await workerAPI.update(selectedWorker._id, data);
+              } else {
+                await workerAPI.create(data);
+              }
+              fetchWorkers();
+              setShowModal(false);
+              setSelectedWorker(null);
+            } catch (err) {
+              console.error('Failed to save worker:', err);
+            }
+          }}
+        />
+      )}
 
       {/* Details Modal */}
       {showDetailsModal && selectedWorker && (
@@ -348,6 +345,154 @@ export default function WorkerManagement() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function WorkerFormModal({ worker, onClose, onSave }: { worker: any; onClose: () => void; onSave: (data: any) => void }) {
+  const [form, setForm] = useState({
+    name: worker?.name || '',
+    email: worker?.email || '',
+    phone: worker?.phone || '',
+    service: worker?.service || '',
+    location: worker?.location || '',
+    status: worker?.status || 'Active',
+    bio: worker?.bio || '',
+    hourlyRate: worker?.hourlyRate || '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    await onSave({ ...form, hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : undefined });
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-100 p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-brand-deep-navy">{worker ? 'Edit Worker' : 'Add Worker'}</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Name *</label>
+            <input
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal text-sm"
+              placeholder="Worker full name"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal text-sm"
+                placeholder="worker@email.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Phone *</label>
+              <input
+                required
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal text-sm"
+                placeholder="+91-XXXXXXXXXX"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Service *</label>
+              <select
+                required
+                value={form.service}
+                onChange={(e) => setForm({ ...form, service: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal text-sm"
+              >
+                <option value="">Select service</option>
+                <option>Plumbing</option>
+                <option>Electrical</option>
+                <option>Carpentry</option>
+                <option>Cleaning</option>
+                <option>AC Repair</option>
+                <option>Painting</option>
+                <option>Events</option>
+                <option>Travels</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Location</label>
+              <input
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal text-sm"
+                placeholder="e.g. Kakinada"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal text-sm"
+              >
+                <option>Active</option>
+                <option>Inactive</option>
+                <option>Suspended</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Hourly Rate (₹)</label>
+              <input
+                type="number"
+                value={form.hourlyRate}
+                onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal text-sm"
+                placeholder="e.g. 300"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Bio</label>
+            <textarea
+              value={form.bio}
+              onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal text-sm resize-none"
+              placeholder="Short description about the worker..."
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-brand-teal text-white rounded-lg hover:bg-brand-teal/90 transition-colors font-semibold text-sm disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : worker ? 'Update Worker' : 'Add Worker'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

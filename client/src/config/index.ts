@@ -3,9 +3,34 @@
  * Centralized configuration for the entire application
  */
 
-// API Configuration
+// API Configuration - Support both VITE and REACT_APP env vars
+const getApiUrl = () => {
+  // Support both Vite and Create React App environment variable styles
+  return (
+    (import.meta.env.VITE_API_URL as string | undefined) ||
+    process.env.REACT_APP_API_URL ||
+    'http://localhost:3000/api'
+  );
+};
+
+const getCloudinaryName = () => {
+  return (
+    (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined) ||
+    process.env.REACT_APP_CLOUDINARY_CLOUD_NAME ||
+    ''
+  );
+};
+
+const getCloudinaryPreset = () => {
+  return (
+    (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string | undefined) ||
+    process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET ||
+    ''
+  );
+};
+
 export const API_CONFIG = {
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3000/api',
+  baseURL: getApiUrl(),
   timeout: 30000,
   retries: 3,
   retryDelay: 1000,
@@ -13,11 +38,15 @@ export const API_CONFIG = {
 
 // Cloudinary Configuration
 export const CLOUDINARY_CONFIG = {
-  cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || '',
-  uploadPreset: process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || '',
+  cloudName: getCloudinaryName(),
+  uploadPreset: getCloudinaryPreset(),
   folder: 'home/zovio/staff',
   formats: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-  maxFileSize: parseInt(process.env.REACT_APP_MAX_FILE_SIZE || '5242880'), // 5MB
+  maxFileSize: parseInt(
+    (import.meta.env.VITE_MAX_FILE_SIZE as string | undefined) ||
+      process.env.REACT_APP_MAX_FILE_SIZE ||
+      '5242880'
+  ), // 5MB
 };
 
 // Feature Flags
