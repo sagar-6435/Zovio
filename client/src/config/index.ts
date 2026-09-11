@@ -9,7 +9,7 @@ const getApiUrl = () => {
   return (
     (import.meta.env.VITE_API_URL as string | undefined) ||
     process.env.REACT_APP_API_URL ||
-    'http://localhost:3000/api'
+    'http://localhost:5000/api'
   );
 };
 

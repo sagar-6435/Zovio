@@ -12,7 +12,7 @@ interface ApiResponse<T> {
   message?: string;
 }
 
-// Generic fetch wrapper with detailed error logging
+// Generic fetch wrapper
 async function apiCall<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -24,10 +24,7 @@ async function apiCall<T>(
       ...options.headers,
     };
 
-    console.log(`[API] ${options.method || 'GET'} ${url}`);
-    if (options.body) {
-      console.log('[API] Request body:', JSON.parse(options.body as string));
-    }
+    console.log('[API]', options.method || 'GET', url);
 
     const response = await fetch(url, {
       ...options,
@@ -35,62 +32,44 @@ async function apiCall<T>(
     });
 
     if (!response.ok) {
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch {
-        errorData = { message: response.statusText };
-      }
-      console.error(`[API] Error ${response.status}:`, errorData);
-      throw new Error(
-        errorData?.message || 
-        errorData?.error || 
-        `API Error: ${response.status} ${response.statusText}`
-      );
+      throw new Error(`API Error: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log(`[API] Success response:`, result);
-    
-    // Server returns data directly, wrap it in our expected format
-    if (result && typeof result === 'object' && 'success' in result) {
-      return result;
-    }
-    return { success: true, data: result };
+    return result;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[API] Error:', errorMessage);
+    console.error('[API] Error:', error instanceof Error ? error.message : 'Unknown error');
     return {
       success: false,
-      error: errorMessage,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
 
 // ============ WORKER APIs ============
 export const workerAPI = {
-  getAll: async () => apiCall('/workers'),
-  getById: async (id: string) => apiCall(`/workers/${id}`),
+  getAll: async () => apiCall('/admin/workers'),
+  getById: async (id: string) => apiCall(`/admin/workers/${id}`),
   create: async (data: any) =>
-    apiCall('/workers', { method: 'POST', body: JSON.stringify(data) }),
+    apiCall('/admin/workers', { method: 'POST', body: JSON.stringify(data) }),
   update: async (id: string, data: any) =>
-    apiCall(`/workers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    apiCall(`/admin/workers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: async (id: string) =>
-    apiCall(`/workers/${id}`, { method: 'DELETE' }),
+    apiCall(`/admin/workers/${id}`, { method: 'DELETE' }),
   uploadImage: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('folder', 'home/zovio/staff');
 
-    return fetch(`${API_BASE_URL}/workers/upload-image`, {
+    return fetch(`${API_BASE_URL}/admin/workers/upload-image`, {
       method: 'POST',
       body: formData,
     }).then((res) => res.json());
   },
   search: async (query: string) =>
-    apiCall(`/workers/search?q=${encodeURIComponent(query)}`),
+    apiCall(`/admin/workers/search?q=${encodeURIComponent(query)}`),
   filter: async (filters: any) =>
-    apiCall('/workers/filter', {
+    apiCall('/admin/workers/filter', {
       method: 'POST',
       body: JSON.stringify(filters),
     }),
@@ -98,23 +77,23 @@ export const workerAPI = {
 
 // ============ SERVICE APIs ============
 export const serviceAPI = {
-  getAll: async () => apiCall('/services'),
-  getById: async (id: string) => apiCall(`/services/${id}`),
+  getAll: async () => apiCall('/admin/services'),
+  getById: async (id: string) => apiCall(`/admin/services/${id}`),
   create: async (data: any) =>
-    apiCall('/services', { method: 'POST', body: JSON.stringify(data) }),
+    apiCall('/admin/services', { method: 'POST', body: JSON.stringify(data) }),
   update: async (id: string, data: any) =>
-    apiCall(`/services/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    apiCall(`/admin/services/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: async (id: string) =>
-    apiCall(`/services/${id}`, { method: 'DELETE' }),
+    apiCall(`/admin/services/${id}`, { method: 'DELETE' }),
   toggleStatus: async (id: string, active: boolean) =>
-    apiCall(`/services/${id}`, {
+    apiCall(`/admin/services/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ active }),
     }),
   search: async (query: string) =>
-    apiCall(`/services/search?q=${encodeURIComponent(query)}`),
+    apiCall(`/admin/services/search?q=${encodeURIComponent(query)}`),
   filter: async (filters: any) =>
-    apiCall('/services/filter', {
+    apiCall('/admin/services/filter', {
       method: 'POST',
       body: JSON.stringify(filters),
     }),
@@ -122,18 +101,18 @@ export const serviceAPI = {
 
 // ============ LOCATION APIs ============
 export const locationAPI = {
-  getAll: async () => apiCall('/locations'),
-  getById: async (id: string) => apiCall(`/locations/${id}`),
+  getAll: async () => apiCall('/admin/locations'),
+  getById: async (id: string) => apiCall(`/admin/locations/${id}`),
   create: async (data: any) =>
-    apiCall('/locations', { method: 'POST', body: JSON.stringify(data) }),
+    apiCall('/admin/locations', { method: 'POST', body: JSON.stringify(data) }),
   update: async (id: string, data: any) =>
-    apiCall(`/locations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    apiCall(`/admin/locations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: async (id: string) =>
-    apiCall(`/locations/${id}`, { method: 'DELETE' }),
+    apiCall(`/admin/locations/${id}`, { method: 'DELETE' }),
   search: async (query: string) =>
-    apiCall(`/locations/search?q=${encodeURIComponent(query)}`),
+    apiCall(`/admin/locations/search?q=${encodeURIComponent(query)}`),
   filter: async (filters: any) =>
-    apiCall('/locations/filter', {
+    apiCall('/admin/locations/filter', {
       method: 'POST',
       body: JSON.stringify(filters),
     }),
@@ -141,26 +120,26 @@ export const locationAPI = {
 
 // ============ COMPLAINT APIs ============
 export const complaintAPI = {
-  getAll: async () => apiCall('/complaints'),
-  getById: async (id: string) => apiCall(`/complaints/${id}`),
+  getAll: async () => apiCall('/admin/complaints'),
+  getById: async (id: string) => apiCall(`/admin/complaints/${id}`),
   create: async (data: any) =>
-    apiCall('/complaints', { method: 'POST', body: JSON.stringify(data) }),
+    apiCall('/admin/complaints', { method: 'POST', body: JSON.stringify(data) }),
   update: async (id: string, data: any) =>
-    apiCall(`/complaints/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    apiCall(`/admin/complaints/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   addResponse: async (id: string, response: string) =>
-    apiCall(`/complaints/${id}/response`, {
+    apiCall(`/admin/complaints/${id}/response`, {
       method: 'POST',
       body: JSON.stringify({ response }),
     }),
   updateStatus: async (id: string, status: string) =>
-    apiCall(`/complaints/${id}`, {
+    apiCall(`/admin/complaints/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
   search: async (query: string) =>
-    apiCall(`/complaints/search?q=${encodeURIComponent(query)}`),
+    apiCall(`/admin/complaints/search?q=${encodeURIComponent(query)}`),
   filter: async (filters: any) =>
-    apiCall('/complaints/filter', {
+    apiCall('/admin/complaints/filter', {
       method: 'POST',
       body: JSON.stringify(filters),
     }),
@@ -168,15 +147,15 @@ export const complaintAPI = {
 
 // ============ ANALYTICS APIs ============
 export const analyticsAPI = {
-  getDashboard: async () => apiCall('/analytics'),
+  getDashboard: async () => apiCall('/admin/analytics'),
   getRevenue: async (dateRange: string = 'month') =>
-    apiCall(`/analytics/revenue?range=${dateRange}`),
-  getServices: async () => apiCall('/analytics/services'),
-  getLocations: async () => apiCall('/analytics/locations'),
-  getWorkers: async () => apiCall('/analytics/workers'),
-  getComplaints: async () => apiCall('/analytics/complaints'),
+    apiCall(`/admin/analytics/revenue?range=${dateRange}`),
+  getServices: async () => apiCall('/admin/analytics/services'),
+  getLocations: async () => apiCall('/admin/analytics/locations'),
+  getWorkers: async () => apiCall('/admin/analytics/workers'),
+  getComplaints: async () => apiCall('/admin/analytics/complaints'),
   exportReport: async (type: string, filters?: any) =>
-    apiCall('/analytics/export', {
+    apiCall('/admin/analytics/export', {
       method: 'POST',
       body: JSON.stringify({ type, filters }),
     }),
@@ -184,41 +163,41 @@ export const analyticsAPI = {
 
 // ============ SETTINGS APIs ============
 export const settingsAPI = {
-  get: async () => apiCall('/settings'),
-  getByKey: async (key: string) => apiCall(`/settings/${key}`),
+  get: async () => apiCall('/admin/settings'),
+  getByKey: async (key: string) => apiCall(`/admin/settings/${key}`),
   update: async (key: string, value: any) =>
-    apiCall(`/settings/${key}`, {
+    apiCall(`/admin/settings/${key}`, {
       method: 'PUT',
       body: JSON.stringify({ value }),
     }),
   updateMultiple: async (settings: Record<string, any>) =>
-    apiCall('/settings', {
+    apiCall('/admin/settings', {
       method: 'PUT',
       body: JSON.stringify(settings),
     }),
   resetToDefaults: async () =>
-    apiCall('/settings/reset', { method: 'POST' }),
+    apiCall('/admin/settings/reset', { method: 'POST' }),
 };
 
 // ============ EXPORT APIs ============
 export const exportAPI = {
   workers: async (filters?: any) =>
-    apiCall('/export/workers', {
+    apiCall('/admin/export/workers', {
       method: 'POST',
       body: JSON.stringify(filters),
     }),
   services: async (filters?: any) =>
-    apiCall('/export/services', {
+    apiCall('/admin/export/services', {
       method: 'POST',
       body: JSON.stringify(filters),
     }),
   locations: async (filters?: any) =>
-    apiCall('/export/locations', {
+    apiCall('/admin/export/locations', {
       method: 'POST',
       body: JSON.stringify(filters),
     }),
   complaints: async (filters?: any) =>
-    apiCall('/export/complaints', {
+    apiCall('/admin/export/complaints', {
       method: 'POST',
       body: JSON.stringify(filters),
     }),

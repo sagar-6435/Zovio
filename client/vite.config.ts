@@ -14,8 +14,20 @@ export default defineConfig({
   },
   vite: {
     server: {
+      host: 'localhost',
       port: 5173,
       strictPort: false,
-    }
+      open: true,
+      cors: true,
+      middlewareMode: false,
+      hmr: {
+        host: 'localhost',
+        port: 5173,
+        protocol: 'http',
+      },
+    },
+    define: {
+      __DEV__: true,
+    },
   }
 });
